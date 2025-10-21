@@ -1,0 +1,70 @@
+resources:
+  jobs:
+    model_deployment_job:
+      name: "HP Model Deployment Job - ${var.environment}"
+      description: "Job to evaluate, approve, and deploy iris classification model"
+
+      # Email notifications
+      email_notifications:
+        on_failure:
+          - "hemapriya.nagarajan@databricks.com"
+        no_alert_for_skipped_runs: false
+
+      # Job parameters
+      parameters:
+        - name: "model_name"
+          default: "${var.catalog_name}.${var.schema_name}.irisclassifierdemo"
+        - name: "model_version"
+          default: "5"
+
+      # Job tasks with dependencies
+      tasks:
+        - task_key: "evaluation"
+          description: "Evaluate model performance before deployment"
+
+          notebook_task:
+            notebook_path: "../artifacts/03_model_deployment/model_evaluation.ipynb"
+            base_parameters:
+              model_name: "{{job.parameters.model_name}}"
+              model_version: "{{job.parameters.model_version}}"
+
+          timeout_seconds: 3600
+
+        - task_key: "approval"
+          description: "Check model approval status based on evaluation results"
+          depends_on:
+            - task_key: "evaluation"
+
+          notebook_task:
+            notebook_path: "../artifacts/03_model_deployment/model_approval.ipynb"
+            base_parameters:
+              model_name: "{{job.parameters.model_name}}"
+              model_version: "{{job.parameters.model_version}}"
+
+          timeout_seconds: 1800
+
+        - task_key: "deployment"
+          description: "Deploy approved model to production endpoint"
+          depends_on:
+            - task_key: "approval"
+
+          notebook_task:
+            notebook_path: "../artifacts/03_model_deployment/model_deployment.ipynb"
+            base_parameters:
+              model_name: "{{job.parameters.model_name}}"
+              model_version: "{{job.parameters.model_version}}"
+
+          timeout_seconds: 3600
+
+      # Queue configuration for controlled deployment
+      queue:
+        enabled: true
+
+      # Job-level settings
+      max_concurrent_runs: 1
+
+      # Tags
+      tags:
+        Environment: "${var.environment}"
+        Project: "hp-mlops-e2e"
+        Stage: "model-deployment"

@@ -1,0 +1,95 @@
+resources:
+  jobs:
+    pipeline_job:
+      name: "HP End-to-End MLOps Pipeline - ${var.environment}"
+      description: "Run data ingestion, model training, model evaluation, approval, deployment, and batch inference notebooks in order"
+
+      email_notifications:
+        on_failure:
+          - "hemapriya.nagarajan@databricks.com"
+        no_alert_for_skipped_runs: false
+
+      parameters:
+        - name: "catalog_name"
+          default: "${var.catalog_name}"
+        - name: "schema_name"
+          default: "${var.schema_name}"
+        - name: "experiment_path"
+          default: "/Workspace/Users/hemapriya.nagarajan@databricks.com/hp_mlops_e2e/models/hp_iris_ml"
+        - name: "model_name"
+          default: "irisclassifierdemo"
+        - name: "model_version"
+          default: "5"
+
+      tasks:
+        - task_key: "ingest_data"
+          description: "Ingest data"
+          notebook_task:
+            notebook_path: "../artifacts/01_data_ingestion/adls_to_uc_volume.ipynb"
+            base_parameters:
+              source_path: "abfss://deltalake@oneenvadls.dfs.core.windows.net/hema_dir/models"
+              volume_path: "/Volumes/${var.catalog_name}/${var.schema_name}/hp_ml_vol"
+              checkpoint_path: "/Volumes/${var.catalog_name}/${var.schema_name}/hp_ml_vol/checkpoints"
+          timeout_seconds: 3600
+
+        - task_key: "train_model"
+          description: "Train model"
+          depends_on:
+            - task_key: "ingest_data"
+          notebook_task:
+            notebook_path: "../artifacts/02_model_training/pickle_to_mlflow_uc.ipynb"
+            base_parameters:
+              pkl_path: "/Volumes/${var.catalog_name}/${var.schema_name}/hp_ml_vol/iris_model.pkl"
+              experiment_path: "/Workspace/Users/hemapriya.nagarajan@databricks.com/hp_mlops_e2e/models/hp_iris_ml"
+          timeout_seconds: 3600
+
+        - task_key: "evaluate_model"
+          description: "Evaluate model"
+          depends_on:
+            - task_key: "train_model"
+          notebook_task:
+            notebook_path: "../artifacts/03_model_deployment/model_evaluation.ipynb"
+            base_parameters:
+              model_name: "${var.catalog_name}.${var.schema_name}.irisclassifierdemo"
+              model_version: "5"
+          timeout_seconds: 1800
+
+        - task_key: "approve_model"
+          description: "Approve model"
+          depends_on:
+            - task_key: "evaluate_model"
+          notebook_task:
+            notebook_path: "../artifacts/03_model_deployment/model_approval.ipynb"
+            base_parameters:
+              model_name: "${var.catalog_name}.${var.schema_name}.irisclassifierdemo"
+              model_version: "5"
+          timeout_seconds: 1200
+
+        - task_key: "deploy_model"
+          description: "Deploy approved model"
+          depends_on:
+            - task_key: "approve_model"
+          notebook_task:
+            notebook_path: "../artifacts/03_model_deployment/model_deployment.ipynb"
+            base_parameters:
+              model_name: "${var.catalog_name}.${var.schema_name}.irisclassifierdemo"
+              model_version: "5"
+          timeout_seconds: 1800
+
+        - task_key: "batch_inference"
+          description: "Batch inference"
+          depends_on:
+            - task_key: "deploy_model"
+          notebook_task:
+            notebook_path: "../artifacts/04_model_inference/batch_inference.ipynb"
+            base_parameters:
+              catalog_name: "${var.catalog_name}"
+              schema_name: "${var.schema_name}"
+          timeout_seconds: 1800
+
+      max_concurrent_runs: 1
+
+      tags:
+        Environment: "${var.environment}"
+        Project: "hp-mlops-e2e"
+        Stage: "end-to-end"
