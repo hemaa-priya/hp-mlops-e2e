@@ -1,0 +1,88 @@
+bundle:
+  name: hp-mlops-e2e
+
+# Include all job definition files from the resources directory
+include:
+  #resources/
+  - jobs/*.yml
+
+# Define deployment targets (environments)
+targets:
+  # Development environment
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://adb-984752964297111.11.azuredatabricks.net/
+    variables:
+      catalog_name: hp_az_catalog
+      schema_name: hp_iris_ml
+      environment: dev
+    # Override permissions for dev environment
+    resources:
+      jobs:
+        data_ingestion_job:
+          permissions:
+            - level: "CAN_MANAGE"
+              group_name: "users"
+            - level: "CAN_MANAGE_RUN"
+              group_name: "users"
+        model_training_job:
+          permissions:
+            - level: "CAN_MANAGE"
+              group_name: "users"
+            - level: "CAN_MANAGE_RUN"
+              group_name: "users"
+        model_deployment_job:
+          permissions:
+            - level: "CAN_MANAGE"
+              group_name: "users"
+            - level: "CAN_MANAGE_RUN"
+              group_name: "users"
+        batch_inference_job:
+          permissions:
+            - level: "CAN_MANAGE"
+              group_name: "users"
+            - level: "CAN_MANAGE_RUN"
+              group_name: "users"
+
+  # Production environment
+  prod:
+    mode: production
+    workspace:
+      host: https://adb-984752964297111.11.azuredatabricks.net/
+    variables:
+      catalog_name: hp_az_catalog
+      schema_name: hp_iris_ml
+      environment: prod
+    # Override permissions for prod environment (more restrictive)
+    resources:
+      jobs:
+        data_ingestion_job:
+          permissions:
+            - level: "CAN_MANAGE"
+              group_name: "admins"
+        model_training_job:
+          permissions:
+            - level: "CAN_MANAGE"
+              group_name: "admins"
+        model_deployment_job:
+          permissions:
+            - level: "CAN_MANAGE"
+              group_name: "admins"
+        batch_inference_job:
+          permissions:
+            - level: "CAN_MANAGE"
+              group_name: "admins"
+
+# Define variables that can be referenced throughout the bundle
+variables:
+  catalog_name:
+    description: "Name of the Unity Catalog to use"
+    default: "hp_az_catalog"
+  schema_name:
+    description: "Name of the schema within the catalog"
+    default: "hp_iris_ml"
+  environment:
+    description: "Environment name (dev/prod)"
+    default: "dev"

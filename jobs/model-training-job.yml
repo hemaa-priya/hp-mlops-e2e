@@ -1,0 +1,45 @@
+resources:
+  jobs:
+    model_training_job:
+      name: "HP Model Training Job - ${var.environment}"
+      description: "Job to train iris classification model and register in MLflow"
+
+      # Email notifications
+      email_notifications:
+        on_failure:
+          - "hemapriya.nagarajan@databricks.com"
+        no_alert_for_skipped_runs: false
+
+      # Job parameters
+      parameters:
+        - name: "pkl_path"
+          default: "/Volumes/${var.catalog_name}/${var.schema_name}/hp_ml_vol/iris_model.pkl"
+        - name: "experiment_path"
+          default: "/Workspace/Users/your.email@company.com/hp_mlops_e2e/models/hp_iris_ml"
+        - name: "model_name"
+          default: "IrisClassifierDemo"
+
+      # Job tasks
+      tasks:
+        - task_key: "train_model"
+          description: "Train model and register in MLflow with challenger alias"
+
+          # Notebook task
+          notebook_task:
+            notebook_path: "../artifacts/02_model_training/pickle_to_mlflow_uc.ipynb"
+            base_parameters:
+              pkl_path: "{{job.parameters.pkl_path}}"
+              experiment_path: "{{job.parameters.experiment_path}}"
+
+          # Timeout and retry settings
+          timeout_seconds: 3600
+          max_retries: 1
+
+      # Job-level settings
+      max_concurrent_runs: 1
+
+      # Tags
+      tags:
+        Environment: "${var.environment}"
+        Project: "hp-mlops-e2e"
+        Stage: "model-training"

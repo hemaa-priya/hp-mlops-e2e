@@ -1,0 +1,46 @@
+resources:
+  jobs:
+    data_ingestion_job:
+      name: "HP Data Ingestion Job - ${var.environment}"
+      description: "Job to ingest data from ADLS to Unity Catalog volumes"
+
+      # Email notifications on failure
+      email_notifications:
+        on_failure:
+          - "hemapriya.nagarajan@databricks.com"
+        no_alert_for_skipped_runs: false
+
+      # Job parameters that can be passed at runtime
+      parameters:
+        - name: "source_path"
+          default: "abfss://deltalake@oneenvadls.dfs.core.windows.net/hema_dir/models"
+        - name: "volume_path"
+          default: "/Volumes/${var.catalog_name}/${var.schema_name}/hp_ml_vol"
+        - name: "checkpoint_path"
+          default: "/Volumes/${var.catalog_name}/${var.schema_name}/hp_ml_vol/checkpoints"
+
+      # Job tasks
+      tasks:
+        - task_key: "ingest_data"
+          description: "Ingest data from ADLS to UC Volume"
+
+          # Notebook task
+          notebook_task:
+            notebook_path: "../artifacts/01_data_ingestion/adls_to_uc_volume.ipynb"
+            base_parameters:
+              source_path: "{{job.parameters.source_path}}"
+              volume_path: "{{job.parameters.volume_path}}"
+              checkpoint_path: "{{job.parameters.checkpoint_path}}"
+
+          # Timeout and retry settings
+          timeout_seconds: 3600
+          max_retries: 2
+
+      # Job-level settings
+      max_concurrent_runs: 1
+
+      # Tags for organization
+      tags:
+        Environment: "${var.environment}"
+        Project: "hp-mlops-e2e"
+        Stage: "data-ingestion"

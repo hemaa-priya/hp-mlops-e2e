@@ -1,0 +1,41 @@
+resources:
+  jobs:
+    batch_inference_job:
+      name: "HP Batch Inference Job - ${var.environment}"
+      description: "Job to run batch inference using the iris classification model"
+
+      # Email notifications
+      email_notifications:
+        on_failure:
+          - "hemapriya.nagarajan@databricks.com"
+        no_alert_for_skipped_runs: false
+
+      # Job parameters
+      parameters:
+        - name: "catalog_name"
+          default: "${var.catalog_name}"
+        - name: "schema_name"
+          default: "${var.schema_name}"
+
+      # Job tasks
+      tasks:
+        - task_key: "batch_inference"
+          description: "Run batch inference and save results to predictions table"
+
+          notebook_task:
+            notebook_path: "../artifacts/04_model_inference/batch_inference.ipynb"
+            base_parameters:
+              catalog_name: "{{job.parameters.catalog_name}}"
+              schema_name: "{{job.parameters.schema_name}}"
+
+          timeout_seconds: 3600
+          max_retries: 1
+
+      # Job-level settings
+      max_concurrent_runs: 1
+
+      # Tags
+      tags:
+        Environment: "${var.environment}"
+        Project: "hp-mlops-e2e"
+        Stage: "batch-inference"
