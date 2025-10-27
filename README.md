@@ -1,4 +1,4 @@
-# HP MLOps E2E on Databricks
+# MLOps E2E on Databricks
 
 An end-to-end MLOps reference on Databricks showcasing a simple Iris classification workflow across data ingestion, model training, evaluation, approval, deployment, and batch inference using Unity Catalog and MLflow.
 
